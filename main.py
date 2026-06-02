@@ -7,7 +7,7 @@ import requests
 import uuid
 import uvicorn
 
-app = FastAPI(title=" Offer Redemption API")
+app = FastAPI(title="Offer Redemption API")
 
 fake = Faker()
 
@@ -16,7 +16,6 @@ properties = {
     "BMC": "Blue Meridian Casino",
     "RLC": "Red Lantern Casino",
     "GPC": "Glass Palm Casino",
-    
 }
 
 # Real-world locations extracted directly from the dataset's high-frequency distributions
@@ -136,14 +135,14 @@ def generate_person_id(activeclubid):
     )
 
 
-def generate_boss_offer_redeem(activeclubid):
+def generate_offer_redeem(activeclubid):
     person_id = generate_person_id(activeclubid)
     property_code = random.choice(list(properties.keys()))
     property_name = properties[property_code]
 
     # Replicate exact data quirk: 'RLC' leaves PROPERTY_CODE, PROPERTY_ACCOUNTING_CODE, 
     # and SF_PROPERTY_ID blank (None) in the raw logs, but retains its code under PROPERTY_ID.
-    prop_code_val = property_code
+    prop_code_val = None if property_code == "RLC" else property_code
     
     # Establish transaction timestamps
     order_timestamp = (
@@ -154,8 +153,13 @@ def generate_boss_offer_redeem(activeclubid):
         )
     )
 
-    # Establish demographics
+    # Establish demographics and calculate tier points using business pattern rules
     club_level = random.choices(["Basic", "Elite"], weights=[0.65, 0.35], k=1)[0]
+    
+    if club_level == "Basic":
+        tier_points = float(random.choices([0, random.randint(1, 1500)], weights=[0.60, 0.40], k=1)[0])
+    else:
+        tier_points = float(random.choice([22803, 36365, 44207, random.randint(20000, 48000)]))
 
     # Mimic real business pattern probability distribution found in data profiles
     pattern_type = random.choices(
@@ -268,7 +272,7 @@ def generate_boss_offer_redeem(activeclubid):
     except (ValueError, TypeError):
         active_club_id_val = activeclubid
 
-    # Strictly structured to align with your required 54-column layout sequence 
+    # Strictly structured to align with your required layout sequence 
     return {
         "EVENT_TIMESTAMP": order_timestamp.isoformat() + "Z",
         "DURATION": 0,
@@ -279,6 +283,8 @@ def generate_boss_offer_redeem(activeclubid):
         "SOURCE_PERSON_KEY": source_person_key,
         "PERSON_ID": int(person_id),
         "ACTIVE_CLUB_ID": active_club_id_val,
+        "CLUB_LEVEL": club_level,
+        "TIER_POINTS": tier_points,
         "SOURCE": "CMP",
         "ENTITY": "OFFER",
         "ACTION": "REDEEM",
@@ -299,8 +305,8 @@ def generate_boss_offer_redeem(activeclubid):
         "PROPERTY_POSTAL_CODE": fake.postcode(),
         "TRANSACTION_AMOUNT": tx_amt,
         "PLAYER_VALUE": tx_amt,
-        "GAME_NET_CASINO_WIN": 0.0,
-        "GAME_NET_THEO_WIN": 0.0,
+        "GAME_NET_CASINO_WIN": tx_amt if pattern_type != "STRATEGIC_OFFER" else 0.0,
+        "GAME_NET_THEO_WIN": tx_amt if pattern_type != "STRATEGIC_OFFER" else 0.0,
         "REINVESTMENT_ID": float(random.randint(14000000000, 16900000000)),
         "REINVESTMENT_AMOUNT": reinvest_amt,
         "REINVESTMENT_PROMO_AMOUNT": 0.0,
@@ -328,7 +334,7 @@ def generate_boss_offer_redeem(activeclubid):
 
 
 @app.get("/v1/offer-redeem")
-async def boss_offer_redeem():
+async def offer_redeem():
     api_url = (
         "https://casino-api-ob26.onrender.com/"
         "v1/player-activity"
@@ -353,7 +359,7 @@ async def boss_offer_redeem():
     final_records = []
     for activeclubid in unique_activeclubids:
         final_records.append(
-            generate_boss_offer_redeem(activeclubid)
+            generate_offer_redeem(activeclubid)
         )
 
     return final_records
