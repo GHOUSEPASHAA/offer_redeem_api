@@ -135,31 +135,29 @@ def generate_person_id(activeclubid):
     )
 
 
-def generate_offer_redeem(activeclubid):
+def generate_offer_redeem(issue_row):
+    activeclubid = issue_row["ACTIVE_CLUB_ID"]
+    club_level = issue_row.get("CLUB_LEVEL")
+    tier_points = issue_row.get("TIER_POINTS", 0)
+    base_points_bal = issue_row.get("BASE_POINTS_BAL", 0)
     person_id = generate_person_id(activeclubid)
-    property_code = random.choice(list(properties.keys()))
-    property_name = properties[property_code]
+    property_code = issue_row.get("PROPERTY_CODE")
+    property_name = issue_row.get("PROPERTY_NAME")
 
     # Replicate exact data quirk: 'RLC' leaves PROPERTY_CODE, PROPERTY_ACCOUNTING_CODE, 
     # and SF_PROPERTY_ID blank (None) in the raw logs, but retains its code under PROPERTY_ID.
-    prop_code_val = None if property_code == "RLC" else property_code
+    prop_code_val = property_code
     
     # Establish transaction timestamps
-    order_timestamp = (
-        datetime.now()
-        - timedelta(
-            days=random.randint(1, 30),
-            hours=random.randint(1, 12)
-        )
+    issue_gaming_date = datetime.strptime(
+        issue_row["GAMING_DATE"],
+        "%m/%d/%Y"
     )
 
-    # Establish demographics and calculate tier points using business pattern rules
-    club_level = random.choices(["Basic", "Elite"], weights=[0.65, 0.35], k=1)[0]
-    
-    if club_level == "Basic":
-        tier_points = float(random.choices([0, random.randint(1, 1500)], weights=[0.60, 0.40], k=1)[0])
-    else:
-        tier_points = float(random.choice([22803, 36365, 44207, random.randint(20000, 48000)]))
+    order_timestamp = issue_gaming_date + timedelta(
+        days=random.randint(1, 15),
+        hours=random.randint(1, 12)
+    )
 
     # Mimic real business pattern probability distribution found in data profiles
     pattern_type = random.choices(
@@ -285,6 +283,7 @@ def generate_offer_redeem(activeclubid):
         "ACTIVE_CLUB_ID": active_club_id_val,
         "CLUB_LEVEL": club_level,
         "TIER_POINTS": tier_points,
+        "BASE_POINTS_BAL": base_points_bal,
         "SOURCE": "CMP",
         "ENTITY": "OFFER",
         "ACTION": "REDEEM",
@@ -335,31 +334,17 @@ def generate_offer_redeem(activeclubid):
 
 @app.get("/v1/offer-redeem")
 async def offer_redeem():
-    api_url = (
-        "https://casino-api-ob26.onrender.com/"
-        "v1/player-activity"
-    )
+
+    api_url = "https://offer-issue-api.onrender.com/v1/offer-issue"
 
     response = requests.get(api_url)
-    player_data = response.json()
-
-    unique_activeclubids = []
-    seen = set()
-
-    for row in player_data:
-        activeclubid = row["ACTIVECLUBID"]
-
-        if activeclubid not in seen:
-            seen.add(activeclubid)
-            unique_activeclubids.append(activeclubid)
-
-        if len(unique_activeclubids) == 50:
-            break
+    issue_data = response.json()
 
     final_records = []
-    for activeclubid in unique_activeclubids:
+
+    for issue_row in issue_data:
         final_records.append(
-            generate_offer_redeem(activeclubid)
+            generate_offer_redeem(issue_row)
         )
 
     return final_records
