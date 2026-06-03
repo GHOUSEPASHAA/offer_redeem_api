@@ -43,7 +43,7 @@ basic_offers_blueprint = [
     },
     {
         "OFFER_CATEGORY": "Freeplay",
-        "OFFER_CHANNEL": "express-offers",
+        "OFFER_CHANNEL": "Instant Coupons",
         "OFFER_REWARD_TYPE": "Electronic Promo Credit to Machine",
         "OFFER_REWARD_NAME": "M!0AD98747",
         "OFFER_REWARD_AMOUNT": 5.0,
@@ -53,7 +53,7 @@ basic_offers_blueprint = [
     },
     {
         "OFFER_CATEGORY": "Food Credit",
-        "OFFER_CHANNEL": "express-offers",
+        "OFFER_CHANNEL": "Instant Coupons",
         "OFFER_REWARD_TYPE": "Food & Beverage",
         "OFFER_REWARD_NAME": "M!0AI79539",
         "OFFER_REWARD_AMOUNT": 15.0,
@@ -85,7 +85,7 @@ elite_offers_blueprint = [
     },
     {
         "OFFER_CATEGORY": "Freeplay",
-        "OFFER_CHANNEL": "express-offers",
+        "OFFER_CHANNEL": "Instant Coupons",
         "OFFER_REWARD_TYPE": "Electronic Promo Credit to Machine",
         "OFFER_REWARD_NAME": "M!0AK77172",
         "OFFER_REWARD_AMOUNT": 50.0,
@@ -104,7 +104,7 @@ elite_offers_blueprint = [
     },
     {
         "OFFER_CATEGORY": "Food Credit",
-        "OFFER_CHANNEL": "express-offers",
+        "OFFER_CHANNEL": "Instant Coupons",
         "OFFER_REWARD_TYPE": "Food & Beverage",
         "OFFER_REWARD_NAME": "M!0AL82147",
         "OFFER_REWARD_AMOUNT": 20.0,
@@ -253,10 +253,10 @@ def generate_offer_redeem(issue_row):
             reinvest_amt = float(reward_amt)
             
             if blueprint["OFFER_CATEGORY"] == "Freeplay":
-                reinvestment_category = "Free Play - Express Offers" if blueprint["OFFER_CHANNEL"] == "express-offers" else "Free Play - WCC.COM"
+                reinvestment_category = "Free Play - Instant Coupons" if blueprint["OFFER_CHANNEL"] == "Instant Coupons" else "Free Play - Online Offers"
                 freeplay_issued = float(reward_amt)
             else:
-                reinvestment_category = "Food Credit - Express Offer" if blueprint["OFFER_CATEGORY"] == "Food Credit" else "Sweepstakes"
+                reinvestment_category = "Food Credit - Instant Coupons" if blueprint["OFFER_CATEGORY"] == "Food Credit" else "Sweepstakes"
                 other_expense = float(reward_amt)
                 if blueprint["OFFER_CATEGORY"] in ["Sweepstakes", "Event"]:
                     promotional_flag = 1.0
