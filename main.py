@@ -160,11 +160,7 @@ def generate_offer_redeem(issue_row):
     )
 
     # Mimic real business pattern probability distribution found in data profiles
-    pattern_type = random.choices(
-        ["EARNED_POINTS", "CASHLESS_POINTS", "CASHLESS_PROMO", "MULTIPLIER", "STRATEGIC_OFFER"],
-        weights=[0.33, 0.22, 0.17, 0.05, 0.23],
-        k=1
-    )[0]
+    
 
     # Initialize standard layout metrics
     details_text = ""
@@ -183,83 +179,49 @@ def generate_offer_redeem(issue_row):
     promotional_flag = 0.0
 
     # Pattern Group 1: Points Accruals & Associated side-by-side Comp Issuances
-    if pattern_type == "EARNED_POINTS":
-        details_text = "Earned Comp or Points"
-        prize_code = "COMPPTS"
-        reinvestment_category = "Points - Earned Card Level"
-        
-        # Pull typical values matching the 25th-75th percentiles up to high-roller exceptions
-        if random.random() > 0.95:
-            amt = round(random.uniform(100.00, 720.00), 2)
-        else:
-            amt = round(random.uniform(0.05, 12.50), 2)
+    details_text = issue_row["OFFER_PRIZE_NAME"]
 
-        tx_amt = -amt
-        reinvest_amt = amt
-        points_issued = amt
-        # Core business rule: Comps are auto-issued alongside points, scaling approx 2.0x to 3.2x higher
-        comp_issued = round(amt * random.uniform(2.0, 3.2), 2) if amt > 0.10 else 0.0
+    prize_code = issue_row["OFFER_REWARD_NAME"]
 
-    # Pattern Group 2: Point to Freeplay Transfers (Balances clear tx and offset straight to counters)
-    elif pattern_type == "CASHLESS_POINTS":
-        details_text = "Cashless Withdraw Points to Restricted"
-        prize_code = "CSHWDPR"
-        reinvestment_category = "Points to Free Play Redeem"
-        points_redeemed = float(random.choice([1.0, 5.0, 10.0, 20.0, 50.0]))
+    reward_amt = float(issue_row["OFFER_REWARD_AMOUNT"])
 
-    # Pattern Group 3: Direct Promo Credit Conversions (Balances clear tx and offset straight to counters)
-    elif pattern_type == "CASHLESS_PROMO":
-        details_text = "Cashless Withdraw Promo Credits to Restricted"
-        prize_code = "CSHWDCR"
-        reinvestment_category = "Free Play - Redeem"
-        freeplay_redeemed = float(random.choice([5.0, 10.0, 15.0, 20.0, 25.0, 40.0, 60.0, 100.0]))
+    tx_amt = -reward_amt
+    reinvest_amt = reward_amt
 
-    # Pattern Group 4: Promotion Multipliers
-    elif pattern_type == "MULTIPLIER":
-        details_text = "2x offer Multiplier"
-        prize_code = "?WMDMULT2X"
-        reinvestment_category = "Unknown"
-        amt = round(random.uniform(0.10, 4.50), 2)
-        tx_amt = -amt
-        reinvest_amt = amt
+    if issue_row["OFFER_CATEGORY"] == "Freeplay":
+        reinvestment_category = (
+            "Free Play - Instant Coupons"
+            if issue_row["OFFER_CHANNEL"] == "Instant Coupons"
+            else "Free Play - Online Offers"
+        )
 
-    # Pattern Group 5: Strategic Structural Offers & Discretionary Adjustments
-    elif pattern_type == "STRATEGIC_OFFER":
-        # Sub-Pattern: 10% chance of hitting a Discretionary Folio Settlement (Comp Redemptions)
-        if random.random() > 0.90:
-            details_text = "Discretionary Hotel Folio Settlement"
-            prize_code = "$1FOLIO"
-            reinvestment_category = "Points - Adjustment"
-            amt = round(random.uniform(100.00, 550.00), 2)
-            tx_amt = -amt
-            reinvest_amt = amt
-            # Core business rule: Discretionary overrides clear instantly into COMP_REDEEMED metrics
-            comp_redeemed = amt
-        else:
-            blueprint = random.choice(basic_offers_blueprint) if club_level == "Basic" else random.choice(elite_offers_blueprint)
-            start_date_str = order_timestamp.strftime("%m/%d")
-            
-            if blueprint["TEMPLATE_TYPE"] == "SINGLE_DAY":
-                details_text = f"{blueprint['TEXT_PREFIX']} ({start_date_str}-{start_date_str})"
-            elif blueprint["TEMPLATE_TYPE"] == "RANGE":
-                end_date = order_timestamp + timedelta(days=blueprint["DAYS_EXTENSION"])
-                details_text = f"{blueprint['TEXT_PREFIX']} ({start_date_str}-{end_date.strftime('%m/%d')})"
-            else:
-                details_text = blueprint["TEXT_PREFIX"]
-                
-            prize_code = blueprint["OFFER_REWARD_NAME"]
-            reward_amt = blueprint["OFFER_REWARD_AMOUNT"]
-            tx_amt = -float(reward_amt)
-            reinvest_amt = float(reward_amt)
-            
-            if blueprint["OFFER_CATEGORY"] == "Freeplay":
-                reinvestment_category = "Free Play - Instant Coupons" if blueprint["OFFER_CHANNEL"] == "Instant Coupons" else "Free Play - Online Offers"
-                freeplay_issued = float(reward_amt)
-            else:
-                reinvestment_category = "Food Credit - Instant Coupons" if blueprint["OFFER_CATEGORY"] == "Food Credit" else "Sweepstakes"
-                other_expense = float(reward_amt)
-                if blueprint["OFFER_CATEGORY"] in ["Sweepstakes", "Event"]:
-                    promotional_flag = 1.0
+        freeplay_redeemed = reward_amt
+
+    elif issue_row["OFFER_CATEGORY"] == "Food Credit":
+
+        reinvestment_category = "Food Credit - Instant Coupons"
+
+        other_expense = reward_amt
+
+    elif issue_row["OFFER_CATEGORY"] == "Hotel":
+
+        reinvestment_category = "Hotel"
+
+        comp_redeemed = reward_amt
+
+    elif issue_row["OFFER_CATEGORY"] == "Event":
+
+        reinvestment_category = "Event"
+
+        promotional_flag = 1.0
+        other_expense = reward_amt
+
+    elif issue_row["OFFER_CATEGORY"] == "Sweepstakes":
+
+        reinvestment_category = "Sweepstakes"
+
+        promotional_flag = 1.0
+        other_expense = reward_amt
 
     event_id = hashlib.md5(str(uuid.uuid4()).encode()).hexdigest()
     event_group_id = hashlib.md5(str(activeclubid).encode()).hexdigest()
@@ -304,8 +266,8 @@ def generate_offer_redeem(issue_row):
         "PROPERTY_POSTAL_CODE": fake.postcode(),
         "TRANSACTION_AMOUNT": tx_amt,
         "PLAYER_VALUE": tx_amt,
-        "GAME_NET_CASINO_WIN": tx_amt if pattern_type != "STRATEGIC_OFFER" else 0.0,
-        "GAME_NET_THEO_WIN": tx_amt if pattern_type != "STRATEGIC_OFFER" else 0.0,
+        "GAME_NET_CASINO_WIN": tx_amt,
+        "GAME_NET_THEO_WIN": tx_amt,
         "REINVESTMENT_ID": float(random.randint(14000000000, 16900000000)),
         "REINVESTMENT_AMOUNT": reinvest_amt,
         "REINVESTMENT_PROMO_AMOUNT": 0.0,
